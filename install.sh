@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # hermes-installer — install.sh
-# https://github.com/yodalai/hermes-installer
+# https://github.com/EzAuto399/hermes-installer
 # Author: Yo-Da Lai (https://yodalai.xyz)
 # License: MIT
 # Wraps the official Hermes Agent installer (https://github.com/NousResearch/hermes-agent, MIT).
@@ -24,7 +24,7 @@ cat <<EOF
 
   ╔════════════════════════════════════════════════╗
   ║   Hermes Agent ☤ — Install                     ║
-  ║   yodalai/hermes-installer                     ║
+  ║   EzAuto399/hermes-installer                     ║
   ║                                                ║
   ║   Yo-Da Lai (yodalai.xyz) — independent tool   ║
   ╚════════════════════════════════════════════════╝

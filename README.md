@@ -20,13 +20,13 @@ This is an **independent third-party tool** built and maintained by [Yo-Da Lai](
 ### macOS / Linux / WSL2
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/yodalai/hermes-installer/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/EzAuto399/hermes-installer/main/install.sh | bash
 ```
 
 Or clone and run locally:
 
 ```bash
-git clone https://github.com/yodalai/hermes-installer.git
+git clone https://github.com/EzAuto399/hermes-installer.git
 cd hermes-installer
 chmod +x install.sh
 ./install.sh
@@ -39,7 +39,7 @@ Hermes does **not** support native Windows. Windows users must run it inside WSL
 Run the PowerShell script as Administrator:
 
 ```powershell
-irm https://raw.githubusercontent.com/yodalai/hermes-installer/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/EzAuto399/hermes-installer/main/install.ps1 | iex
 ```
 
 It will:
@@ -51,7 +51,7 @@ It will:
 
 ```bash
 pkg install curl
-curl -fsSL https://raw.githubusercontent.com/yodalai/hermes-installer/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/EzAuto399/hermes-installer/main/install.sh | bash
 ```
 
 Termux installs the `.[termux]` extra (curated for Android compatibility — full extras include voice deps that don't run on Android).
@@ -72,7 +72,7 @@ Termux installs the `.[termux]` extra (curated for Android compatibility — ful
 `curl | bash` should always be inspected. To review before executing:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/yodalai/hermes-installer/main/install.sh -o install.sh
+curl -fsSL https://raw.githubusercontent.com/EzAuto399/hermes-installer/main/install.sh -o install.sh
 less install.sh        # read it
 chmod +x install.sh
 ./install.sh
@@ -98,7 +98,7 @@ hermes claw migrate --dry-run    # preview what would migrate
 hermes claw migrate              # actually migrate
 ```
 
-If you need to install OpenClaw first, see [openclaw-installer](https://github.com/yodalai/openclaw-installer).
+If you need to install OpenClaw first, see [openclaw-installer](https://github.com/EzAuto399/openclaw-installer).
 
 ## Troubleshooting
 

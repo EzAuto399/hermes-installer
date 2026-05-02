@@ -1,5 +1,5 @@
 # hermes-installer — install.ps1
-# https://github.com/yodalai/hermes-installer
+# https://github.com/EzAuto399/hermes-installer
 # Author: Yo-Da Lai (https://yodalai.xyz)
 # License: MIT
 # Wraps the official Hermes Agent installer (https://github.com/NousResearch/hermes-agent, MIT).
@@ -22,7 +22,7 @@ Write-Host @"
 
   ╔════════════════════════════════════════════════╗
   ║   Hermes Agent ☤ — Install (Windows → WSL2)    ║
-  ║   yodalai/hermes-installer                     ║
+  ║   EzAuto399/hermes-installer                     ║
   ║                                                ║
   ║   Yo-Da Lai (yodalai.xyz) — independent tool   ║
   ╚════════════════════════════════════════════════╝
@@ -80,7 +80,7 @@ if (-not $wslInstalled) {
   ║   2. Set Linux username + password             ║
   ║   3. In the Ubuntu terminal, run:              ║
   ║                                                ║
-  ║      curl -fsSL https://raw.githubusercontent.com/yodalai/hermes-installer/main/install.sh | bash
+  ║      curl -fsSL https://raw.githubusercontent.com/EzAuto399/hermes-installer/main/install.sh | bash
   ║                                                ║
   ║   That installs Hermes inside WSL2.            ║
   ╚════════════════════════════════════════════════╝
@@ -125,12 +125,12 @@ Write-Host @"
   ╚════════════════════════════════════════════════╝
 
   Will execute inside WSL2 / $defaultDistro :
-  curl -fsSL https://raw.githubusercontent.com/yodalai/hermes-installer/main/install.sh | bash
+  curl -fsSL https://raw.githubusercontent.com/EzAuto399/hermes-installer/main/install.sh | bash
 
 "@
 
 if (Confirm-Yes "Run Hermes install inside WSL now?") {
-    wsl -- bash -c "curl -fsSL https://raw.githubusercontent.com/yodalai/hermes-installer/main/install.sh | bash"
+    wsl -- bash -c "curl -fsSL https://raw.githubusercontent.com/EzAuto399/hermes-installer/main/install.sh | bash"
 }
 else {
     Write-Host @"
@@ -138,7 +138,7 @@ else {
   Manual path:
     1. Open WSL terminal:    wsl
     2. Inside WSL, run:
-         curl -fsSL https://raw.githubusercontent.com/yodalai/hermes-installer/main/install.sh | bash
+         curl -fsSL https://raw.githubusercontent.com/EzAuto399/hermes-installer/main/install.sh | bash
     3. Once Hermes is installed:
          hermes setup
 
