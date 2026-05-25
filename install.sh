@@ -5,22 +5,32 @@
 # License: MIT
 # Wraps the official Hermes Agent installer (https://github.com/NousResearch/hermes-agent, MIT).
 # This is an independent third-party tool, not affiliated with Nous Research.
+#
+# What this script does that the official installer doesn't:
+#   - Installs curl and git if missing (the official installer requires both)
+#   - Installs Homebrew on macOS (used by the official installer for ripgrep/ffmpeg)
+#   - Installs build tools on Debian/Ubuntu (needed by Python packages)
+#   - Platform detection with friendly guidance
+#   - Then delegates to the official Nous Research installer for everything else
 
 set -euo pipefail
-
-MIN_PYTHON="3.11"
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
 BLUE='\033[0;34m'; BOLD='\033[1m'; NC='\033[0m'
 
-info()    { echo -e "${BLUE}ℹ${NC}  $*"; }
+info()    { echo -e "${BLUE}→${NC}  $*"; }
 success() { echo -e "${GREEN}✓${NC}  $*"; }
 warn()    { echo -e "${YELLOW}⚠${NC}  $*"; }
 fail()    { echo -e "${RED}✗${NC}  $*"; exit 1; }
 step()    { echo -e "\n${BOLD}── $* ──${NC}"; }
-confirm() { read -p "$1 [y/N] " -n 1 -r; echo; [[ $REPLY =~ ^[Yy]$ ]]; }
 
-cat <<EOF
+confirm() {
+    local answer
+    read -p "$1 [y/N] " -r answer
+    [[ "$answer" =~ ^[Yy]$ ]]
+}
+
+cat <<'EOF'
 
   ╔════════════════════════════════════════════════╗
   ║   Hermes Agent ☤ — Install                     ║
@@ -29,144 +39,190 @@ cat <<EOF
   ║   Yo-Da Lai (yodalai.xyz) — independent tool   ║
   ╚════════════════════════════════════════════════╝
 
-  Wraps the official Hermes Agent installer with cross-platform
-  prerequisite handling (Python, curl).
+  This wraps the official Hermes Agent installer with
+  prerequisite handling for a fresh device.
 
-  Steps:
-    1. Detect platform (macOS / Linux / WSL2 / Termux)
-    2. Install Python ${MIN_PYTHON}+ and curl if missing
-    3. Run the official Nous Research installer
-    4. Verify and start the setup wizard
+  What will happen:
+    1. Detect your platform
+    2. Install curl + git if missing (required by the installer)
+    3. Install build tools on Linux (required by Python packages)
+    4. Run the official Nous Research Hermes installer
+    5. Verify everything works
+
+  The official installer handles: uv, Python, Node.js,
+  ripgrep, ffmpeg, and Hermes itself.
 
 EOF
 
 if ! confirm "Continue?"; then info "Aborted."; exit 0; fi
 [[ "$EUID" -eq 0 ]] && fail "Don't run as root. Run as your normal user."
 
+# ── Platform detection ──────────────────────────────────────────────
+
 step "Detecting platform"
+
 case "$(uname -s)" in
     Darwin*)
-        OS="macos"; ARCH="$(uname -m)"; success "macOS ($ARCH)"
+        OS="macos"; ARCH="$(uname -m)"
+        success "macOS ($ARCH)"
         ;;
     Linux*)
         if grep -qiE "(microsoft|wsl)" /proc/version 2>/dev/null; then
             OS="wsl"; success "WSL2"
-        elif [ -d "/data/data/com.termux" ] 2>/dev/null; then
+        elif [ -d "/data/data/com.termux" ] 2>/dev/null || [ -n "${TERMUX_VERSION:-}" ]; then
             OS="termux"; success "Termux (Android)"
-            warn "Hermes installs the .[termux] extra on Android."
         else
             OS="linux"; success "Linux"
         fi
         if [ -f /etc/os-release ]; then
             . /etc/os-release
-            DISTRO="${ID:-unknown}"; info "Distribution: $DISTRO"
+            DISTRO="${ID:-unknown}"; info "Distribution: ${DISTRO}"
         else DISTRO="unknown"; fi
         ;;
     *)
-        cat <<EOF
-${RED}✗${NC} Unsupported platform: $(uname -s)
-Hermes does NOT support native Windows. Use install.ps1 for the WSL2 setup.
-EOF
-        exit 1
+        fail "Unsupported platform: $(uname -s). Use install.ps1 on Windows."
         ;;
 esac
 
+# ── curl ────────────────────────────────────────────────────────────
+
 step "Checking curl"
-install_curl() {
+
+if command -v curl >/dev/null 2>&1; then
+    success "curl ✓"
+else
+    info "curl is not installed. The official Hermes installer needs it."
     case "$OS" in
         macos)
-            command -v brew >/dev/null 2>&1 || install_homebrew
-            brew install curl
+            if command -v brew >/dev/null 2>&1; then
+                brew install curl && success "curl installed"
+            else
+                info "Installing Homebrew first..."
+                /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" || true
+                if [[ "$ARCH" == "arm64" ]]; then
+                    eval "$(/opt/homebrew/bin/brew shellenv)"
+                else
+                    eval "$(/usr/local/bin/brew shellenv)"
+                fi
+                brew install curl && success "curl installed"
+            fi
             ;;
         linux|wsl)
             case "$DISTRO" in
                 ubuntu|debian) sudo apt-get update -y && sudo apt-get install -y curl ;;
                 fedora|rhel|centos) sudo dnf install -y curl ;;
-                *) fail "Install curl manually for $DISTRO" ;;
+                arch) sudo pacman -S --noconfirm curl ;;
+                *) info "Install curl manually for your distro and re-run this script" ;;
             esac
             ;;
         termux) pkg install -y curl ;;
     esac
-}
-
-if command -v curl >/dev/null 2>&1; then
-    success "curl ✓"
-else
-    if confirm "curl missing. Install now?"; then install_curl; success "curl installed"
-    else fail "curl is required."; fi
+    command -v curl >/dev/null 2>&1 || fail "curl still not found after install attempt."
+    success "curl installed"
 fi
 
-step "Checking Python ${MIN_PYTHON}+"
-python_ok() {
-    command -v python3 >/dev/null 2>&1 || return 1
-    local v
-    v=$(python3 -c 'import sys; print("{}.{}".format(*sys.version_info[:2]))' 2>/dev/null || echo "0.0")
-    awk -v v1="$v" -v v2="$MIN_PYTHON" 'BEGIN { exit !(v1 >= v2) }'
-}
+# ── git ──────────────────────────────────────────────────────────────
 
-install_homebrew() {
-    if command -v brew >/dev/null 2>&1; then return; fi
-    info "Installing Homebrew (will request sudo password)..."
+step "Checking git"
+
+if command -v git >/dev/null 2>&1; then
+    success "git $(git --version | awk '{print $3}') ✓"
+else
+    info "git is not installed. The official Hermes installer needs it to clone the repo."
+    case "$OS" in
+        macos)
+            command -v brew >/dev/null 2>&1 || {
+                info "Installing Homebrew..."
+                /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+                if [[ "$ARCH" == "arm64" ]]; then
+                    eval "$(/opt/homebrew/bin/brew shellenv)"
+                else
+                    eval "$(/usr/local/bin/brew shellenv)"
+                fi
+            }
+            brew install git && success "git installed"
+            ;;
+        linux|wsl)
+            case "$DISTRO" in
+                ubuntu|debian) sudo apt-get update -y && sudo apt-get install -y git ;;
+                fedora|rhel|centos) sudo dnf install -y git ;;
+                arch) sudo pacman -S --noconfirm git ;;
+                *) info "Install git manually: your-package-manager install git" ;;
+            esac
+            ;;
+        termux) pkg install -y git ;;
+    esac
+    command -v git >/dev/null 2>&1 || fail "git still not found after install attempt."
+    success "git installed"
+fi
+
+# ── macOS Homebrew (official installer uses it for ripgrep/ffmpeg) ──
+
+if [ "$OS" = "macos" ] && ! command -v brew >/dev/null 2>&1; then
+    step "Installing Homebrew"
+    info "The official Hermes installer uses Homebrew (brew) to install ripgrep and ffmpeg."
     /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-    if [[ "${ARCH:-}" == "arm64" ]]; then
+    if [[ "$ARCH" == "arm64" ]]; then
         eval "$(/opt/homebrew/bin/brew shellenv)"
     else
         eval "$(/usr/local/bin/brew shellenv)"
     fi
-}
+    success "Homebrew installed"
+fi
 
-install_python_macos() { install_homebrew; brew install python@3.12; }
-install_python_debian() { sudo apt-get update -y && sudo apt-get install -y python3 python3-pip python3-venv; }
-install_python_fedora() { sudo dnf install -y python3 python3-pip; }
-install_python_termux() { pkg install -y python; }
+# ── Build tools for Debian/Ubuntu ───────────────────────────────────
 
-if python_ok; then
-    success "Python $(python3 --version | cut -d' ' -f2) ✓"
-else
-    if command -v python3 >/dev/null 2>&1; then
-        warn "Python $(python3 --version | cut -d' ' -f2) is too old (need ${MIN_PYTHON}+)"
+if { [ "$OS" = "linux" ] || [ "$OS" = "wsl" ]; } && { [ "$DISTRO" = "ubuntu" ] || [ "$DISTRO" = "debian" ]; }; then
+    step "Checking build tools"
+    NEED_BUILD=false
+    for pkg in gcc python3-dev libffi-dev; do
+        if ! dpkg -s "$pkg" &>/dev/null; then
+            NEED_BUILD=true
+            break
+        fi
+    done
+    if [ "$NEED_BUILD" = true ]; then
+        info "Some Python packages need build tools (build-essential, python3-dev, libffi-dev)."
+        info "Hermes Agent itself does not require or retain root access."
+        if confirm "Install build tools now? (requires sudo)"; then
+            sudo apt-get update -y
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq build-essential python3-dev libffi-dev
+            success "Build tools installed"
+        else
+            warn "Skipping build tools. The official installer may prompt again."
+        fi
     else
-        warn "Python 3 not installed"
-    fi
-    if confirm "Install Python ${MIN_PYTHON}+ now?"; then
-        case "$OS" in
-            macos) install_python_macos ;;
-            linux|wsl)
-                case "$DISTRO" in
-                    ubuntu|debian) install_python_debian ;;
-                    fedora|rhel|centos) install_python_fedora ;;
-                    *) fail "Unsupported Linux distro: $DISTRO" ;;
-                esac
-                ;;
-            termux) install_python_termux ;;
-        esac
-        python_ok || fail "Python install completed but version check still fails. Open new terminal."
-        success "Python $(python3 --version | cut -d' ' -f2) installed"
-    else
-        fail "Cannot continue without Python."
+        success "Build tools ✓"
     fi
 fi
 
+# ── Already installed? ──────────────────────────────────────────────
+
 if command -v hermes >/dev/null 2>&1; then
     CURRENT=$(hermes --version 2>/dev/null || echo "unknown")
-    warn "Hermes already installed (version $CURRENT)"
+    warn "Hermes already installed (version ${CURRENT})"
     if confirm "Update to latest?"; then
+        info "Running: hermes update"
         hermes update
         success "Updated"
-    else
-        info "Keeping current version"
     fi
     exit 0
 fi
 
-step "Running official Hermes installer"
+# ── Run official installer ──────────────────────────────────────────
+
+step "Running the official Hermes Agent installer"
 info "Source: github.com/NousResearch/hermes-agent/scripts/install.sh"
-info "(Installs uv → creates venv → installs Hermes with all extras)"
+info "This installs uv, Python, Node.js, ripgrep, ffmpeg, and Hermes itself."
+info "(first run on a fresh venv can take 1–5 minutes)"
 echo
 
 curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash
 
-step "Verifying"
+# ── Verify ───────────────────────────────────────────────────────────
+
+step "Verifying installation"
+
 case "$SHELL" in
     */zsh)  RC="$HOME/.zshrc" ;;
     */bash) RC="$HOME/.bashrc" ;;
@@ -183,7 +239,7 @@ else
     INSTALLED=false
 fi
 
-cat <<EOF
+cat <<'EOF'
 
   ╔════════════════════════════════════════════════╗
   ║   ✓ Hermes Agent installed                     ║
@@ -193,6 +249,7 @@ cat <<EOF
 
     hermes setup        # Full setup wizard (recommended)
     hermes              # Start the interactive CLI
+    hermes setup --portal  # Skip API keys — use Nous Portal
     hermes model        # Choose your LLM provider
     hermes tools        # Configure tools
 
@@ -201,13 +258,13 @@ cat <<EOF
     hermes gateway start
 
   Migrating from OpenClaw?
-    hermes claw migrate              # interactive
     hermes claw migrate --dry-run    # preview only
+    hermes claw migrate              # migrate
 
   Diagnose issues:
     hermes doctor
 
-  Official Hermes docs: https://hermes-agent.nousresearch.com/docs/
+  Official docs: https://hermes-agent.nousresearch.com/docs/
 
 EOF
 

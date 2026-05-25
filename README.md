@@ -1,19 +1,23 @@
 # hermes-installer
 
-Cross-platform install scripts for **[Hermes Agent](https://github.com/NousResearch/hermes-agent)** — the self-improving AI agent built by Nous Research.
+**One command to install [Hermes Agent](https://github.com/NousResearch/hermes-agent)** on a fresh device — the self-improving AI agent built by Nous Research.
 
-This is an **independent third-party tool** built and maintained by [Yo-Da Lai](https://yodalai.xyz). It wraps the official Hermes installer with prerequisite handling (Python installation), platform detection, and a Windows-to-WSL2 setup path. It does not modify Hermes itself; it calls the official `scripts/install.sh` from the [Hermes Agent repo](https://github.com/NousResearch/hermes-agent/blob/main/scripts/install.sh) under the hood.
+This is an **independent third-party tool** by [Yo-Da Lai](https://yodalai.xyz). It wraps the official Hermes installer with prerequisite handling so a single command gets you from a fresh machine to a working Hermes install. It does not modify Hermes itself.
 
-> ⚠️ **Not affiliated with Nous Research or the Hermes Agent project.** For official support, see the [Hermes documentation](https://hermes-agent.nousresearch.com/docs/) and the [Nous Research Discord](https://discord.gg/NousResearch).
+> Not affiliated with Nous Research. For official support, see the [Hermes docs](https://hermes-agent.nousresearch.com/docs/) and [Discord](https://discord.gg/NousResearch).
 
 ---
 
 ## What this script does
 
-1. Detects your platform (macOS, Linux, WSL2, Termux on Android, or native Windows)
-2. Installs Python 3.11+ and curl if missing
-3. Runs the official Hermes Agent installer (`scripts/install.sh`), which itself installs `uv`, creates a venv, and pulls Hermes with all extras
-4. Verifies the install and offers to launch `hermes setup`
+The official Hermes installer is excellent but assumes curl and git are already on your machine. This wrapper fills those gaps:
+
+1. Detects your platform (macOS, Linux, WSL2, Termux)
+2. Installs **curl** and **git** if missing (required by the official installer)
+3. Installs **Homebrew** on macOS (used by the official installer for ripgrep/ffmpeg)
+4. Installs **build tools** on Debian/Ubuntu (needed by Python packages)
+5. Runs the official Hermes Agent installer, which handles: uv, Python, Node.js, ripgrep, ffmpeg, and Hermes itself
+6. Verifies the install and offers to launch `hermes setup`
 
 ## Quick start
 
@@ -34,18 +38,18 @@ chmod +x install.sh
 
 ### Windows
 
-Hermes does **not** support native Windows. Windows users must run it inside WSL2 (Linux on Windows).
+Hermes now supports two paths on Windows:
 
-Run the PowerShell script as Administrator:
+- **Native Windows** (early beta) — official Nous Research installer, runs Hermes directly on Windows with a bundled Git Bash
+- **WSL2** (battle-tested) — runs Hermes inside a Linux VM, full feature support
+
+Our PowerShell script offers both:
 
 ```powershell
 irm https://raw.githubusercontent.com/EzAuto399/hermes-installer/main/install.ps1 | iex
 ```
 
-It will:
-1. Verify your Windows build supports WSL2
-2. Install WSL2 + Ubuntu if missing
-3. After reboot, run the Linux install script inside WSL2
+It will ask which path you want, then handle the rest.
 
 ### Android (Termux)
 
@@ -54,44 +58,38 @@ pkg install curl
 curl -fsSL https://raw.githubusercontent.com/EzAuto399/hermes-installer/main/install.sh | bash
 ```
 
-Termux installs the `.[termux]` extra (curated for Android compatibility — full extras include voice deps that don't run on Android).
-
-## Platforms supported
+## Platforms
 
 | Platform | Script | Notes |
 |---|---|---|
-| macOS (Intel + Apple Silicon) | `install.sh` | Installs Homebrew + Python via brew |
-| Linux (Ubuntu/Debian) | `install.sh` | apt + NodeSource for Python |
-| Linux (Fedora/RHEL/CentOS) | `install.sh` | dnf for Python |
-| WSL2 (Linux on Windows) | `install.sh` | Same as Linux flow |
-| Android (Termux) | `install.sh` | pkg manager, `.[termux]` extra |
-| Windows 10/11 native | `install.ps1` | Sets up WSL2, then runs install.sh inside |
+| macOS (Intel + Apple Silicon) | `install.sh` | Installs Homebrew, curl, git; official installer handles the rest |
+| Linux (Ubuntu/Debian) | `install.sh` | Installs build tools, curl, git; official installer handles the rest |
+| Linux (Fedora/RHEL/Arch) | `install.sh` | Best-effort curl/git install; official installer handles the rest |
+| WSL2 | `install.sh` | Same as Linux above |
+| Android (Termux) | `install.sh` | Installs curl, git via pkg; official installer uses `.[termux]` extra |
+| Windows 10/11 | `install.ps1` | Offers native Windows (early beta) or WSL2 path |
 
-## Inspect the script before running
-
-`curl | bash` should always be inspected. To review before executing:
+## Inspect before running
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/EzAuto399/hermes-installer/main/install.sh -o install.sh
-less install.sh        # read it
+less install.sh
 chmod +x install.sh
 ./install.sh
 ```
 
-## What you get after installing
+## What you get
 
 - `hermes` command available globally
-- `uv`-managed Python virtualenv with Hermes installed
-- Cross-session persistent memory + skills system
-- 40+ built-in tools, six terminal backends (local, Docker, SSH, Daytona, Singularity, Modal)
-- Multi-platform messaging gateway (Telegram, Discord, Slack, WhatsApp, Signal, Email, CLI)
+- `uv`-managed Python virtual environment with Hermes installed
+- 70+ built-in tools, 7 terminal backends (local, Docker, SSH, Daytona, Singularity, Modal, Vercel Sandbox)
+- 20+ messaging platforms (Telegram, Discord, Slack, WhatsApp, Signal, and more)
+- Cross-session persistent memory, autonomous skill creation, cron scheduling
+- MCP integration, voice mode, browser tools
 
-After install, follow the official Hermes docs:
-- https://hermes-agent.nousresearch.com/docs/
+After install, see the official docs: https://hermes-agent.nousresearch.com/docs/
 
 ## Migrating from OpenClaw
-
-Hermes ships with a built-in `hermes claw migrate` command that imports SOUL.md, MEMORY.md, skills, command allowlists, and API keys from an existing OpenClaw install. After running this installer:
 
 ```bash
 hermes claw migrate --dry-run    # preview what would migrate
@@ -102,43 +100,32 @@ If you need to install OpenClaw first, see [openclaw-installer](https://github.c
 
 ## Troubleshooting
 
-If the install fails:
-
 1. **Run `hermes doctor`** — built-in diagnostic
-2. **Open a new terminal** — PATH changes from Python install may need a fresh shell
-3. **Check the [official Hermes Agent issues](https://github.com/NousResearch/hermes-agent/issues)** — your problem may already be reported there
-4. **Join the [Nous Research Discord](https://discord.gg/NousResearch)** — Hermes-specific help
-5. **For issues with this wrapper script specifically**, open an issue here
+2. **Open a new terminal** — PATH changes need a fresh shell
+3. **Check the [official Hermes issues](https://github.com/NousResearch/hermes-agent/issues)**
+4. **Join the [Nous Research Discord](https://discord.gg/NousResearch)**
+5. **For wrapper-specific issues**, open an issue in this repo
 
 ## Disclaimer
 
-THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. You run this script at your own risk. It will:
 
-You run this script at your own risk. It will:
-- Install Python 3.11+ system-wide using your platform's package manager
+- Install curl and git system-wide using your platform's package manager
 - Install Homebrew on macOS if missing
-- Run `sudo` for system package operations on Linux
-- Run the official Nous Research installer, which installs `uv` and creates a virtualenv
+- Use `sudo` for system package operations on Linux
+- Run the official Nous Research installer, which installs `uv`, creates a virtual environment, and installs Hermes with all extras
 - Hermes Agent itself prompts for and stores LLM API keys
 
 By running this script, you acknowledge that:
 - You are responsible for inspecting the script before running it
-- This script is not affiliated with, endorsed by, or supported by Nous Research, the Hermes Agent project, or its maintainers
-- This script is not affiliated with Anthropic, OpenAI, or any LLM provider
+- This script is not affiliated with or endorsed by Nous Research, Hermes Agent, or any LLM provider
 - The author is not responsible for any damage to your system, loss of data, or unintended consequences
-
-If you encounter issues with Hermes Agent itself (post-install), report them at the [official Hermes repo](https://github.com/NousResearch/hermes-agent/issues), not here.
-
-If you encounter issues with this wrapper script, open an issue in this repo.
 
 ## Attribution
 
-This wrapper depends on and calls into:
-
+This wrapper depends on:
 - **Hermes Agent** by Nous Research — https://github.com/NousResearch/hermes-agent (MIT)
 - **uv** by Astral — https://github.com/astral-sh/uv (MIT/Apache-2.0)
-
-All credit for the underlying functionality goes to those projects' maintainers.
 
 ## License
 
@@ -148,6 +135,6 @@ Copyright (c) 2026 Yo-Da Lai
 
 ---
 
-Author: [Yo-Da Lai](https://yodalai.xyz) — independent automation engineer, Gold Coast, Australia.
+Author: [Yo-Da Lai](https://yodalai.xyz) — Gold Coast, Australia.
 
 If this saved you time, a star on the repo helps others find it.
